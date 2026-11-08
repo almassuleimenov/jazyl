@@ -1,0 +1,8 @@
+# secrets
+.env
+.env.*
+!.env.example
+# build
+backend/bin/
+*.exe
+coverage.out

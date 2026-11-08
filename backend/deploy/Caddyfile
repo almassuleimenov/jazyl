@@ -1,0 +1,8 @@
+{$API_DOMAIN:api.jazyl.kz} {
+	encode gzip
+	@metrics path /metrics
+	respond @metrics 404
+	reverse_proxy jazyl:8080 {
+		header_up X-Real-IP {remote_host}
+	}
+}

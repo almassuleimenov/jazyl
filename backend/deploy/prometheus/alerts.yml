@@ -1,0 +1,42 @@
+groups:
+  - name: jazyl
+    rules:
+      - alert: JazylDown
+        expr: up{job="jazyl"} == 0
+        for: 2m
+        labels: {severity: critical}
+        annotations: {summary: "Jazyl backend is down — reminders are not being sent"}
+
+      - alert: OutboxBacklog
+        expr: jazyl_outbox_queued > 200
+        for: 15m
+        labels: {severity: warning}
+        annotations: {summary: "WhatsApp outbox backlog {{ $value }} — a session is probably disconnected"}
+
+      - alert: MessageFailuresHigh
+        expr: sum(rate(jazyl_messages_total{result="failed"}[30m])) / clamp_min(sum(rate(jazyl_messages_total{result=~"sent|failed"}[30m])), 1e-9) > 0.1
+        for: 30m
+        labels: {severity: warning}
+        annotations: {summary: "More than 10% of WhatsApp messages fail"}
+
+      - alert: RemindersStalled
+        # Evening reminder window: nothing sent between 20:00 and 21:00 Almaty (15:00-16:00 UTC).
+        expr: (hour() == 16) and (sum(increase(jazyl_reminders_total{outcome="sent"}[1h])) == 0)
+        labels: {severity: warning}
+        annotations: {summary: "No reminders were sent in the evening window"}
+
+      - alert: JobErrors
+        expr: sum by (job) (increase(jazyl_job_runs_total{result="error"}[15m])) > 3
+        labels: {severity: warning}
+        annotations: {summary: "Background job {{ $labels.job }} keeps failing"}
+
+      - alert: HTTP5xx
+        expr: sum(rate(jazyl_http_requests_total{code="5xx"}[5m])) > 0.1
+        for: 10m
+        labels: {severity: warning}
+        annotations: {summary: "API returns 5xx errors"}
+
+      - alert: WebhookErrors
+        expr: sum(increase(jazyl_webhook_events_total{outcome="error"}[15m])) > 5
+        labels: {severity: warning}
+        annotations: {summary: "OpenWA webhooks fail to process (patients' replies may be lost after retries)"}

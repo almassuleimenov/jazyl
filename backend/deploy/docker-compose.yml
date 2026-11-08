@@ -1,0 +1,59 @@
+# Production-like stack on one VPS (ideally in Kazakhstan — patient data residency):
+#   jazyl   — this backend (API + workers)
+#   openwa  — self-hosted WhatsApp gateway (https://github.com/rmyndharis/OpenWA)
+#   caddy   — TLS reverse proxy (automatic HTTPS for api.jazyl.kz)
+# PostgreSQL is external (DATABASE_URL). Run: docker compose --env-file ../.env up -d
+services:
+  jazyl:
+    build: ..
+    restart: unless-stopped
+    environment:
+      APP_ENV: production
+      HTTP_ADDR: ":8080"
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL}
+      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_MIGRATE_URL: ${DATABASE_MIGRATE_URL:-}
+      JWT_SECRET: ${JWT_SECRET}
+      DASHBOARD_ORIGINS: ${DASHBOARD_ORIGINS}
+      OPENWA_BASE_URL: http://openwa:2785
+      OPENWA_API_KEY: ${OPENWA_API_KEY}
+      OPENWA_WEBHOOK_SECRET: ${OPENWA_WEBHOOK_SECRET}
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      TRUSTED_PROXY: "true"
+      LOG_LEVEL: info
+    depends_on: [openwa]
+    healthcheck:
+      test: ["CMD", "/jazyl", "healthcheck"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  openwa:
+    image: ghcr.io/rmyndharis/openwa:latest   # pin a version tag in production
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      API_MASTER_KEY: ${OPENWA_API_KEY}
+      ENGINE_TYPE: ${OPENWA_ENGINE:-baileys}
+      SIMULATE_TYPING: "true"
+      SEND_PACING_ENABLED: "true"
+      # OpenWA blocks webhooks to private hosts by default (SSRF guard). We point it at the
+      # public HTTPS URL of the backend, so no exception is needed.
+    volumes:
+      - openwa-data:/app/data          # linked WhatsApp sessions — back this up!
+    # Dashboard (2785) is intentionally NOT published. Use: ssh -L 2785:localhost:2785 vps
+
+  caddy:
+    image: caddy:2.8-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+    depends_on: [jazyl]
+
+volumes:
+  openwa-data:
+  caddy-data:
