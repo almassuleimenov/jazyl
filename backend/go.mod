@@ -2,6 +2,8 @@ module github.com/almasik/jazyl
 
 go 1.26.0
 
+toolchain go1.26.10
+
 require (
 	github.com/coder/websocket v1.8.15
 	github.com/go-chi/chi/v5 v5.5.0

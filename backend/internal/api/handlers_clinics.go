@@ -13,6 +13,7 @@ import (
 	"github.com/almasik/jazyl/internal/auth"
 	"github.com/almasik/jazyl/internal/domain"
 	"github.com/almasik/jazyl/internal/phone"
+	"github.com/almasik/jazyl/internal/store"
 )
 
 var reSlug = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$`)
@@ -269,7 +270,9 @@ func (a *API) createUser(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, r, http.StatusUnprocessableEntity, "invalid", err.Error())
 		return
 	}
-	u, err := a.store.CreateUser(r.Context(), &domain.User{ClinicID: &cid, Email: email, PasswordHash: hash, Name: strings.TrimSpace(in.Name), Role: in.Role})
+	// The password was chosen by someone else, so the user must replace it at first login.
+	u, err := a.store.CreateUser(r.Context(), &domain.User{ClinicID: &cid, Email: email, PasswordHash: hash,
+		Name: strings.TrimSpace(in.Name), Role: in.Role, MustChangePassword: true})
 	if errors.Is(err, domain.ErrConflict) {
 		writeErr(w, r, http.StatusConflict, "conflict", "a user with this email already exists")
 		return
@@ -313,6 +316,78 @@ func (a *API) updateUser(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	a.audit(r, &cid, "user.updated", "user", uid.String(), map[string]any{"is_active": *in.IsActive})
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// resetUserPassword sets a temporary password for a clinic user (Jazyl, or the owner for admins).
+// The user must change it at next login; all their sessions end and any lockout is cleared.
+func (a *API) resetUserPassword(w http.ResponseWriter, r *http.Request) {
+	cid, _ := pathUUID(w, r, "clinicID")
+	uid, ok := pathUUID(w, r, "userID")
+	if !ok {
+		return
+	}
+	var in struct {
+		Password string `json:"password"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	p, _ := principal(r.Context())
+	if p.UserID == uid {
+		writeErr(w, r, http.StatusUnprocessableEntity, "invalid", "use the account page to change your own password")
+		return
+	}
+	target, err := a.store.GetClinicUser(r.Context(), cid, uid)
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	if p.Role != domain.RoleSuperadmin && target.Role != domain.RoleAdmin {
+		writeErr(w, r, http.StatusForbidden, "forbidden", "only Jazyl can reset an owner's password")
+		return
+	}
+	hash, err := auth.HashPassword(in.Password)
+	if err != nil {
+		writeErr(w, r, http.StatusUnprocessableEntity, "invalid", err.Error())
+		return
+	}
+	err = a.store.InTx(r.Context(), func(tx *store.Store) error {
+		if err := tx.SetUserPassword(r.Context(), uid, hash, true); err != nil {
+			return err
+		}
+		return tx.RevokeUserTokens(r.Context(), uid)
+	})
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	a.audit(r, &cid, "user.password_reset", "user", uid.String(), nil)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// resetUserMFA removes a clinic user's 2FA (lost phone). Jazyl only.
+func (a *API) resetUserMFA(w http.ResponseWriter, r *http.Request) {
+	cid, _ := pathUUID(w, r, "clinicID")
+	uid, ok := pathUUID(w, r, "userID")
+	if !ok {
+		return
+	}
+	if _, err := a.store.GetClinicUser(r.Context(), cid, uid); err != nil {
+		fail(w, r, err)
+		return
+	}
+	err := a.store.InTx(r.Context(), func(tx *store.Store) error {
+		if err := tx.DisableTOTP(r.Context(), uid); err != nil {
+			return err
+		}
+		return tx.RevokeUserTokens(r.Context(), uid)
+	})
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	a.audit(r, &cid, "user.totp_reset", "user", uid.String(), nil)
 	w.WriteHeader(http.StatusNoContent)
 }
 

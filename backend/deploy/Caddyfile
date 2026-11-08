@@ -6,3 +6,10 @@
 		header_up X-Real-IP {remote_host}
 	}
 }
+
+# Dashboard. Caddy replaces any client-sent X-Forwarded-For with the real address, which the
+# dashboard forwards to the API for per-IP login limits (the API runs with TRUSTED_PROXY=true).
+{$APP_DOMAIN:app.jazyl.kz} {
+	encode gzip
+	reverse_proxy dashboard:3000
+}

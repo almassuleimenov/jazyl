@@ -6,6 +6,7 @@
 //	jazyl                     # serve (API + workers)
 //	jazyl migrate             # apply database migrations and exit
 //	jazyl create-superadmin EMAIL PASSWORD
+//	jazyl reset-mfa EMAIL      # remove a lost 2FA device (server-side recovery)
 package main
 
 import (
@@ -69,6 +70,17 @@ func run() error {
 		}
 		defer pool.Close()
 		return createSuperadmin(ctx, store.New(pool), os.Args[2], os.Args[3], log)
+	case "reset-mfa":
+		// Recovery for a Jazyl account whose authenticator phone was lost. Run on the server.
+		if len(os.Args) != 3 {
+			return errors.New("usage: jazyl reset-mfa EMAIL")
+		}
+		pool, err := platform.OpenDB(ctx, cfg.DatabaseURL, 2)
+		if err != nil {
+			return err
+		}
+		defer pool.Close()
+		return resetMFA(ctx, store.New(pool), os.Args[2], log)
 	case "serve":
 		return serve(ctx, cfg, log)
 	case "healthcheck": // for Docker HEALTHCHECK on distroless images (no curl)
@@ -113,6 +125,24 @@ func createSuperadmin(ctx context.Context, st *store.Store, email, password stri
 	return nil
 }
 
+func resetMFA(ctx context.Context, st *store.Store, email string, log *slog.Logger) error {
+	u, err := st.GetUserByEmail(ctx, email)
+	if err != nil {
+		return fmt.Errorf("find user: %w", err)
+	}
+	if err := st.DisableTOTP(ctx, u.ID); err != nil {
+		return err
+	}
+	if err := st.RevokeUserTokens(ctx, u.ID); err != nil {
+		return err
+	}
+	if err := st.Audit(ctx, u.ClinicID, nil, "user.totp_reset_cli", "user", u.ID.String(), "", nil); err != nil {
+		log.Warn("audit write failed", "err", err)
+	}
+	log.Info("2FA removed; the user must set it up again at next login", "user_id", u.ID)
+	return nil
+}
+
 func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	if cfg.AutoMigrate {
 		if err := migrate(ctx, cfg, log); err != nil {
@@ -139,9 +169,12 @@ func serve(ctx context.Context, cfg *config.Config, log *slog.Logger) error {
 	svc := core.New(st, hub, log)
 	tokens := auth.NewTokens(cfg.JWTSecret)
 
-	handler := api.New(api.Deps{
+	handler, err := api.New(api.Deps{
 		Config: cfg, Log: log, Store: st, Service: svc, Tokens: tokens, Hub: hub, Sessions: openwa, Router: router,
 	})
+	if err != nil {
+		return err
+	}
 	srv := &http.Server{
 		Addr:              cfg.HTTPAddr,
 		Handler:           handler,

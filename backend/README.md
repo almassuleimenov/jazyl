@@ -65,11 +65,18 @@ go test -race ./...
 ### Авторизация
 | Метод | Путь | Описание |
 |---|---|---|
-| POST | `/auth/login` | `{email, password}` → `{access_token, refresh_token, expires_in, user}` |
+| POST | `/auth/login` | `{email, password}` → `{access_token, refresh_token, expires_in, user, mfa, mfa_setup_required, must_change_password}`; если включена 2FA → `{mfa_required: true, mfa_token}` |
+| POST | `/auth/mfa` | `{mfa_token, code}`: второй шаг входа, 6-значный код из Google Authenticator |
 | POST | `/auth/refresh` | `{refresh_token}`, ротация; повторное использование старого токена отзывает все сессии |
 | POST | `/auth/logout` | `{refresh_token}` |
-| GET | `/auth/me` | пользователь и его клиника |
-| POST | `/auth/password` | `{current_password, new_password}` |
+| POST | `/auth/logout-all` | выйти на всех устройствах |
+| GET | `/auth/me` | пользователь, клиника и `session: {mfa, mfa_setup_required, must_change_password}` |
+| POST | `/auth/password` | `{current_password, new_password}` → новая пара токенов, остальные сессии закрываются |
+| POST | `/auth/totp/setup` | `{secret, otpauth_url}` для QR-кода; 2FA ещё не включена |
+| POST | `/auth/totp/enable` | `{code}` включает 2FA, возвращает новые токены |
+| POST | `/auth/totp/disable` | `{password, code}`; суперадмину в production запрещено |
+
+**Безопасность входа.** Пароль, выданный сотруднику Jazyl'ом или владельцем, временный: пока его не сменят, все запросы кроме `/auth/*` получают `403 password_change_required`. Суперадмин без 2FA получает `403 mfa_required` (в production всегда). После 5 неверных паролей или кодов подряд аккаунт блокируется на 15 минут (`429 account_locked`, заголовок `Retry-After`). Каждый TOTP-код срабатывает один раз. Секреты 2FA зашифрованы AES-256-GCM ключом `DATA_ENCRYPTION_KEY`. Потерян телефон суперадмина: на сервере `jazyl reset-mfa EMAIL`.
 | POST | `/ws/ticket` | одноразовый тикет на 60 с для WebSocket |
 | GET | `/ws?ticket=…&clinic_id=…` | live-события: `appointment.created/updated`, `lead.created`, `message.received`, `review.complaint`, `whatsapp.status`, `schedule.imported` |
 
@@ -87,7 +94,9 @@ go test -race ./...
 | Метод | Путь | Описание |
 |---|---|---|
 | GET / PATCH | `/` | профиль и настройки (`settings`: часы напоминаний, тихие часы, кресла, график, `auto_book_from_site`…). Тариф и статус меняет только Jazyl |
-| GET/POST, PATCH `/{userID}` | `/users` | сотрудники (`owner` создаёт только Jazyl) |
+| GET/POST, PATCH `/{userID}` | `/users` | сотрудники (`owner` создаёт только Jazyl); пароль при создании временный |
+| POST | `/users/{userID}/password` | `{password}`: выдать новый временный пароль (Jazyl; владелец — только админам), сессии сотрудника закрываются, блокировка снимается |
+| POST | `/users/{userID}/reset-2fa` | снять 2FA сотрудника, потерявшего телефон (только Jazyl) |
 | GET/POST, PUT `/{id}` | `/doctors`, `/services` | врачи и прайс |
 | GET, GET/PATCH `/{id}` | `/patients` | `?q=` поиск по имени и телефону; `opted_out` — отписка |
 | GET/POST | `/appointments` | `?from&to&status&doctor_id&patient_id`; по умолчанию сегодня и завтра |
@@ -150,7 +159,7 @@ export async function POST(req: Request) {
 ## Структура
 
 ```
-cmd/jazyl            точка входа: serve | migrate | create-superadmin | healthcheck
+cmd/jazyl            точка входа: serve | migrate | create-superadmin | reset-mfa | healthcheck
 internal/api         HTTP: роутинг, middleware, обработчики
 internal/core        бизнес-логика (напоминания, бот, заявки, отчёты, фоновые задачи)
 internal/store       PostgreSQL (pgx), аналитические запросы

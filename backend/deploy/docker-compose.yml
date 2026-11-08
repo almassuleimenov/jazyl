@@ -1,7 +1,8 @@
 # Production-like stack on one VPS (ideally in Kazakhstan — patient data residency):
 #   jazyl   — this backend (API + workers)
 #   openwa  — self-hosted WhatsApp gateway (https://github.com/rmyndharis/OpenWA)
-#   caddy   — TLS reverse proxy (automatic HTTPS for api.jazyl.kz)
+#   dashboard — Next.js cabinet for Jazyl staff and clinics (../../frontend), talks to jazyl internally
+#   caddy   — TLS reverse proxy (automatic HTTPS for api.jazyl.kz and app.jazyl.kz)
 # PostgreSQL is external (DATABASE_URL). Run: docker compose --env-file ../.env up -d
 services:
   jazyl:
@@ -14,6 +15,7 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       DATABASE_MIGRATE_URL: ${DATABASE_MIGRATE_URL:-}
       JWT_SECRET: ${JWT_SECRET}
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY}
       DASHBOARD_ORIGINS: ${DASHBOARD_ORIGINS}
       OPENWA_BASE_URL: http://openwa:2785
       OPENWA_API_KEY: ${OPENWA_API_KEY}
@@ -45,6 +47,14 @@ services:
       - openwa-data:/app/data          # linked WhatsApp sessions — back this up!
     # Dashboard (2785) is intentionally NOT published. Use: ssh -L 2785:localhost:2785 vps
 
+  dashboard:
+    build: ../../frontend
+    restart: unless-stopped
+    environment:
+      # Internal URL: the browser never talks to the API directly, only to this BFF.
+      JAZYL_API_URL: http://jazyl:8080
+    depends_on: [jazyl]
+
   caddy:
     image: caddy:2.8-alpine
     restart: unless-stopped
@@ -52,7 +62,7 @@ services:
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy-data:/data
-    depends_on: [jazyl]
+    depends_on: [jazyl, dashboard]
 
 volumes:
   openwa-data:

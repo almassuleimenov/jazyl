@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+/* Jazyl brand tokens (PRODUCT.md): teal #0F5E63, amber #F2A541, milk #F7F5F0, graphite #1F2328.
+   Light only: reception desks and phones in daylight. Amber never carries white text. */
+@theme {
+  --color-milk: #f7f5f0;
+  --color-surface: #ffffff;
+  --color-sunk: #f1eee7;
+  --color-line: #e6e1d6;
+  --color-line-strong: #d3cdbf;
+
+  --color-ink: #1f2328;
+  --color-ink-2: #545960;
+  --color-ink-3: #6b7078;
+
+  --color-brand: #0f5e63;
+  --color-brand-strong: #0b4a4e;
+  --color-brand-soft: #e3efef;
+  --color-brand-line: #b9d5d6;
+  --color-brand-ink: #d4e6e6;
+
+  --color-action: #f2a541;
+  --color-action-hover: #e8962b;
+  --color-action-soft: #fcf0dc;
+  --color-action-ink: #7a4a07;
+
+  --color-ok: #1d6f46;
+  --color-ok-soft: #e4f2ea;
+  --color-bad: #b42318;
+  --color-bad-soft: #fbe9e7;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-manrope), var(--font-inter), ui-sans-serif, sans-serif;
+
+  --radius-control: 8px;
+  --radius-panel: 12px;
+
+  --shadow-panel: 0 1px 2px rgb(31 35 40 / 0.05), 0 1px 1px rgb(31 35 40 / 0.03);
+  --shadow-pop: 0 8px 24px -6px rgb(31 35 40 / 0.18), 0 2px 6px rgb(31 35 40 / 0.06);
+
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    background: var(--color-milk);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+  ::selection {
+    background: var(--color-brand-soft);
+    color: var(--color-ink);
+  }
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+  }
+  input,
+  textarea,
+  select {
+    caret-color: var(--color-brand);
+  }
+  input::placeholder,
+  textarea::placeholder {
+    color: var(--color-ink-3);
+  }
+  a {
+    text-underline-offset: 3px;
+  }
+  table {
+    font-variant-numeric: tabular-nums;
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+  /* iOS zooms inputs under 16px; keep 16px on touch screens. */
+  @media (pointer: coarse) {
+    input,
+    select,
+    textarea {
+      font-size: 16px !important;
+    }
+  }
+}
+
+@layer components {
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

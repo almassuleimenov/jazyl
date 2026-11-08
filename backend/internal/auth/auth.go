@@ -50,7 +50,9 @@ func CheckPassword(hash, pw string) bool {
 type Claims struct {
 	Role     string `json:"role"`
 	ClinicID string `json:"cid,omitempty"`
-	Purpose  string `json:"pur,omitempty"` // "" = access, "ws" = websocket ticket
+	Purpose  string `json:"pur,omitempty"` // "" = access, "ws" = websocket ticket, "mfa" = pending second factor
+	MFA      bool   `json:"mfa,omitempty"` // session passed the second factor
+	PwChange bool   `json:"pwc,omitempty"` // password must be changed before anything else
 	jwt.RegisteredClaims
 }
 
@@ -59,6 +61,10 @@ type Principal struct {
 	UserID   uuid.UUID
 	Role     string
 	ClinicID *uuid.UUID
+	// MFA is true when this session passed TOTP verification.
+	MFA bool
+	// MustChangePassword limits the session to the account endpoints until the password is changed.
+	MustChangePassword bool
 }
 
 // Tokens issues and verifies HS256 JWTs.
@@ -74,8 +80,10 @@ func NewTokens(secret []byte) *Tokens { return &Tokens{secret: secret, issuer: "
 func (t *Tokens) Issue(p Principal, purpose string, ttl time.Duration) (string, error) {
 	now := time.Now()
 	c := Claims{
-		Role:    p.Role,
-		Purpose: purpose,
+		Role:     p.Role,
+		Purpose:  purpose,
+		MFA:      p.MFA,
+		PwChange: p.MustChangePassword,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    t.issuer,
 			Subject:   p.UserID.String(),
@@ -110,7 +118,7 @@ func (t *Tokens) Verify(token, purpose string) (Principal, error) {
 	if err != nil {
 		return Principal{}, ErrInvalidToken
 	}
-	p := Principal{UserID: uid, Role: c.Role}
+	p := Principal{UserID: uid, Role: c.Role, MFA: c.MFA, MustChangePassword: c.PwChange}
 	if c.ClinicID != "" {
 		cid, err := uuid.Parse(c.ClinicID)
 		if err != nil {

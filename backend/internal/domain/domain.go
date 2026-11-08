@@ -215,6 +215,13 @@ type User struct {
 	IsActive     bool       `json:"is_active"`
 	LastLoginAt  *time.Time `json:"last_login_at"`
 	CreatedAt    time.Time  `json:"created_at"`
+
+	MustChangePassword bool       `json:"must_change_password"`
+	TOTPEnabled        bool       `json:"totp_enabled"`
+	TOTPSecretEnc      []byte     `json:"-"`
+	TOTPLastStep       int64      `json:"-"`
+	FailedLogins       int        `json:"-"`
+	LockedUntil        *time.Time `json:"-"`
 }
 
 // Doctor works in a clinic.

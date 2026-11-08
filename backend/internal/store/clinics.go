@@ -126,11 +126,13 @@ func (s *Store) SetSessionStatus(ctx context.Context, sessionID, status string) 
 
 // ---------- users ----------
 
-const userCols = `id, clinic_id, email, password_hash, name, role, is_active, last_login_at, created_at`
+const userCols = `id, clinic_id, email, password_hash, name, role, is_active, last_login_at, created_at,
+	must_change_password, totp_enabled, totp_secret_enc, totp_last_step, failed_logins, locked_until`
 
 func scanUser(row pgx.Row) (*domain.User, error) {
 	var u domain.User
-	if err := row.Scan(&u.ID, &u.ClinicID, &u.Email, &u.PasswordHash, &u.Name, &u.Role, &u.IsActive, &u.LastLoginAt, &u.CreatedAt); err != nil {
+	if err := row.Scan(&u.ID, &u.ClinicID, &u.Email, &u.PasswordHash, &u.Name, &u.Role, &u.IsActive, &u.LastLoginAt, &u.CreatedAt,
+		&u.MustChangePassword, &u.TOTPEnabled, &u.TOTPSecretEnc, &u.TOTPLastStep, &u.FailedLogins, &u.LockedUntil); err != nil {
 		return nil, mapErr(err)
 	}
 	return &u, nil
@@ -139,8 +141,9 @@ func scanUser(row pgx.Row) (*domain.User, error) {
 // CreateUser inserts a user.
 func (s *Store) CreateUser(ctx context.Context, u *domain.User) (*domain.User, error) {
 	return scanUser(s.db.QueryRow(ctx, `
-		INSERT INTO users (clinic_id, email, password_hash, name, role) VALUES ($1, lower($2), $3, $4, $5)
-		RETURNING `+userCols, u.ClinicID, u.Email, u.PasswordHash, u.Name, u.Role))
+		INSERT INTO users (clinic_id, email, password_hash, name, role, must_change_password)
+		VALUES ($1, lower($2), $3, $4, $5, $6)
+		RETURNING `+userCols, u.ClinicID, u.Email, u.PasswordHash, u.Name, u.Role, u.MustChangePassword))
 }
 
 // GetUserByEmail looks up a user case-insensitively.
@@ -183,16 +186,99 @@ func (s *Store) SetUserActive(ctx context.Context, clinicID, userID uuid.UUID, a
 	return nil
 }
 
-// SetUserPassword replaces a user's password hash.
-func (s *Store) SetUserPassword(ctx context.Context, userID uuid.UUID, hash string) error {
-	_, err := s.db.Exec(ctx, `UPDATE users SET password_hash=$2 WHERE id=$1`, userID, hash)
+// SetUserPassword replaces a user's password hash. mustChange forces a change at next login
+// (set when someone else chose the password). It also clears any lockout.
+func (s *Store) SetUserPassword(ctx context.Context, userID uuid.UUID, hash string, mustChange bool) error {
+	tag, err := s.db.Exec(ctx, `UPDATE users SET password_hash=$2, must_change_password=$3, password_changed_at=now(),
+		failed_logins=0, locked_until=NULL WHERE id=$1`, userID, hash, mustChange)
+	if err != nil {
+		return mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+// TouchLogin records a successful login and clears the failure counter.
+func (s *Store) TouchLogin(ctx context.Context, userID uuid.UUID) error {
+	_, err := s.db.Exec(ctx, `UPDATE users SET last_login_at=now(), failed_logins=0, locked_until=NULL WHERE id=$1`, userID)
 	return mapErr(err)
 }
 
-// TouchLogin records a successful login.
-func (s *Store) TouchLogin(ctx context.Context, userID uuid.UUID) error {
-	_, err := s.db.Exec(ctx, `UPDATE users SET last_login_at=now() WHERE id=$1`, userID)
-	return mapErr(err)
+// RecordLoginFailure counts a failed password or code and locks the account for lockFor
+// once maxFailures is reached. It returns the lock deadline when this failure locked the account.
+func (s *Store) RecordLoginFailure(ctx context.Context, userID uuid.UUID, maxFailures int, lockFor time.Duration) (*time.Time, error) {
+	var locked *time.Time
+	var justLocked bool
+	err := s.db.QueryRow(ctx, `
+		UPDATE users SET
+			failed_logins = CASE WHEN failed_logins + 1 >= $2 THEN 0 ELSE failed_logins + 1 END,
+			locked_until  = CASE WHEN failed_logins + 1 >= $2 THEN now() + make_interval(secs => $3) ELSE locked_until END
+		WHERE id=$1
+		RETURNING locked_until, COALESCE(locked_until > now(), false)`, userID, maxFailures, lockFor.Seconds()).Scan(&locked, &justLocked)
+	if err != nil {
+		return nil, mapErr(err)
+	}
+	if !justLocked {
+		return nil, nil
+	}
+	return locked, nil
+}
+
+// SetPendingTOTP stores a new, not yet enabled, encrypted TOTP secret.
+func (s *Store) SetPendingTOTP(ctx context.Context, userID uuid.UUID, sealed []byte) error {
+	tag, err := s.db.Exec(ctx, `UPDATE users SET totp_secret_enc=$2 WHERE id=$1 AND NOT totp_enabled`, userID, sealed)
+	if err != nil {
+		return mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrConflict
+	}
+	return nil
+}
+
+// EnableTOTP turns on 2FA after the first code was verified at step.
+func (s *Store) EnableTOTP(ctx context.Context, userID uuid.UUID, step int64) error {
+	tag, err := s.db.Exec(ctx, `UPDATE users SET totp_enabled=true, totp_last_step=$2
+		WHERE id=$1 AND NOT totp_enabled AND totp_secret_enc IS NOT NULL`, userID, step)
+	if err != nil {
+		return mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrConflict
+	}
+	return nil
+}
+
+// DisableTOTP removes the second factor (the user's own request or a reset by Jazyl).
+func (s *Store) DisableTOTP(ctx context.Context, userID uuid.UUID) error {
+	tag, err := s.db.Exec(ctx, `UPDATE users SET totp_enabled=false, totp_secret_enc=NULL, totp_last_step=0 WHERE id=$1`, userID)
+	if err != nil {
+		return mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+// ConsumeTOTPStep records step as used. It fails with ErrConflict if this step, or a later one,
+// was already accepted, so each code works exactly once.
+func (s *Store) ConsumeTOTPStep(ctx context.Context, userID uuid.UUID, step int64) error {
+	tag, err := s.db.Exec(ctx, `UPDATE users SET totp_last_step=$2 WHERE id=$1 AND totp_last_step < $2`, userID, step)
+	if err != nil {
+		return mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrConflict
+	}
+	return nil
+}
+
+// GetClinicUser returns a user only if it belongs to clinicID.
+func (s *Store) GetClinicUser(ctx context.Context, clinicID, userID uuid.UUID) (*domain.User, error) {
+	return scanUser(s.db.QueryRow(ctx, `SELECT `+userCols+` FROM users WHERE id=$1 AND clinic_id=$2`, userID, clinicID))
 }
 
 // CountSuperadmins counts platform admins (bootstrap check).
@@ -204,37 +290,49 @@ func (s *Store) CountSuperadmins(ctx context.Context) (int, error) {
 
 // ---------- refresh tokens ----------
 
-// InsertRefreshToken stores a hashed refresh token.
-func (s *Store) InsertRefreshToken(ctx context.Context, userID uuid.UUID, hash []byte, expires time.Time, ua, ip string) error {
-	_, err := s.db.Exec(ctx, `INSERT INTO refresh_tokens (user_id, token_hash, expires_at, user_agent, ip) VALUES ($1,$2,$3,$4,$5)`,
-		userID, hash, expires, truncate(ua, 300), ip)
+// InsertRefreshToken stores a hashed refresh token. mfa records that the session passed 2FA.
+func (s *Store) InsertRefreshToken(ctx context.Context, userID uuid.UUID, hash []byte, expires time.Time, ua, ip string, mfa bool) error {
+	_, err := s.db.Exec(ctx, `INSERT INTO refresh_tokens (user_id, token_hash, expires_at, user_agent, ip, mfa) VALUES ($1,$2,$3,$4,$5,$6)`,
+		userID, hash, expires, truncate(ua, 300), ip, mfa)
 	return mapErr(err)
 }
 
+// RefreshReuseGrace is how long a just-rotated refresh token may be presented again without
+// being treated as stolen. Parallel requests from one browser race on the same token; the
+// loser gets ErrRefreshRace (a plain 401) instead of revoking every session of the user.
+const RefreshReuseGrace = 30 * time.Second
+
+// ErrRefreshRace marks a benign reuse of a token rotated moments ago.
+var ErrRefreshRace = fmt.Errorf("%w: refresh token was just rotated", domain.ErrUnauthorized)
+
 // ConsumeRefreshToken atomically revokes a valid token and returns its owner.
-// A token that was already revoked signals reuse: all of the user's tokens are revoked.
-func (s *Store) ConsumeRefreshToken(ctx context.Context, hash []byte) (uuid.UUID, error) {
-	var userID uuid.UUID
-	var revoked *time.Time
+// A token that was already revoked signals reuse: all of the user's tokens are revoked,
+// except within RefreshReuseGrace of a rotation (see ErrRefreshRace).
+// The returned mfa flag tells whether that session had passed the second factor.
+func (s *Store) ConsumeRefreshToken(ctx context.Context, hash []byte) (userID uuid.UUID, mfa bool, err error) {
+	var revoked, rotated *time.Time
 	var expires time.Time
-	err := s.db.QueryRow(ctx, `SELECT user_id, revoked_at, expires_at FROM refresh_tokens WHERE token_hash=$1 FOR UPDATE`, hash).
-		Scan(&userID, &revoked, &expires)
+	err = s.db.QueryRow(ctx, `SELECT user_id, revoked_at, rotated_at, expires_at, mfa FROM refresh_tokens WHERE token_hash=$1 FOR UPDATE`, hash).
+		Scan(&userID, &revoked, &rotated, &expires, &mfa)
 	if err != nil {
-		return uuid.Nil, mapErr(err)
+		return uuid.Nil, false, mapErr(err)
+	}
+	if revoked != nil && rotated != nil && time.Since(*rotated) < RefreshReuseGrace {
+		return uuid.Nil, false, ErrRefreshRace
 	}
 	if revoked != nil {
 		if _, err := s.db.Exec(ctx, `UPDATE refresh_tokens SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL`, userID); err != nil {
-			return uuid.Nil, mapErr(err)
+			return uuid.Nil, false, mapErr(err)
 		}
-		return uuid.Nil, domain.ErrUnauthorized
+		return uuid.Nil, false, domain.ErrUnauthorized
 	}
 	if time.Now().After(expires) {
-		return uuid.Nil, domain.ErrUnauthorized
+		return uuid.Nil, false, domain.ErrUnauthorized
 	}
-	if _, err := s.db.Exec(ctx, `UPDATE refresh_tokens SET revoked_at=now() WHERE token_hash=$1`, hash); err != nil {
-		return uuid.Nil, mapErr(err)
+	if _, err := s.db.Exec(ctx, `UPDATE refresh_tokens SET revoked_at=now(), rotated_at=now() WHERE token_hash=$1`, hash); err != nil {
+		return uuid.Nil, false, mapErr(err)
 	}
-	return userID, nil
+	return userID, mfa, nil
 }
 
 // RevokeRefreshToken revokes a single token (logout).

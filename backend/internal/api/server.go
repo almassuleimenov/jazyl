@@ -27,13 +27,16 @@ type API struct {
 	store    *store.Store
 	svc      *core.Service
 	tokens   *auth.Tokens
+	sealer   *auth.Sealer
 	hub      *realtime.Hub
 	sessions whatsapp.SessionManager
 	router   *whatsapp.Router
 
-	loginLimiter  *Limiter
-	publicLimiter *Limiter
-	siteLimiter   *Limiter
+	loginLimiter   *Limiter // login + 2FA step, per client IP
+	refreshLimiter *Limiter // token refresh, per client IP
+	accountLimiter *Limiter // password / 2FA changes, per user
+	publicLimiter  *Limiter
+	siteLimiter    *Limiter
 }
 
 // Deps are the API's collaborators.
@@ -49,15 +52,22 @@ type Deps struct {
 }
 
 // New builds the HTTP handler.
-func New(d Deps) http.Handler {
-	a := &API{
-		cfg: d.Config, log: d.Log, store: d.Store, svc: d.Service, tokens: d.Tokens, hub: d.Hub,
-		sessions: d.Sessions, router: d.Router,
-		loginLimiter:  NewLimiter(10, 5),
-		publicLimiter: NewLimiter(20, 10),
-		siteLimiter:   NewLimiter(300, 60),
+func New(d Deps) (http.Handler, error) {
+	sealer, err := auth.NewSealer(d.Config.DataEncryptionKey)
+	if err != nil {
+		return nil, err
 	}
-	return a.routes()
+	a := &API{
+		sealer: sealer,
+		cfg:    d.Config, log: d.Log, store: d.Store, svc: d.Service, tokens: d.Tokens, hub: d.Hub,
+		sessions: d.Sessions, router: d.Router,
+		loginLimiter:   NewLimiter(d.Config.LoginRatePerMinute, 10),
+		refreshLimiter: NewLimiter(120, 30),
+		accountLimiter: NewLimiter(10, 5),
+		publicLimiter:  NewLimiter(20, 10),
+		siteLimiter:    NewLimiter(300, 60),
+	}
+	return a.routes(), nil
 }
 
 func (a *API) routes() http.Handler {
@@ -87,14 +97,26 @@ func (a *API) routes() http.Handler {
 		r.Use(a.dashboardCORS)
 
 		r.With(a.rateLimit(a.loginLimiter, a.clientIP)).Post("/auth/login", a.login)
-		r.With(a.rateLimit(a.loginLimiter, a.clientIP)).Post("/auth/refresh", a.refresh)
+		r.With(a.rateLimit(a.loginLimiter, a.clientIP)).Post("/auth/mfa", a.loginMFA)
+		r.With(a.rateLimit(a.refreshLimiter, a.clientIP)).Post("/auth/refresh", a.refresh)
 		r.Post("/auth/logout", a.logout)
 		r.Get("/ws", a.websocket) // authenticated by a short-lived ticket
 
+		// Account security: reachable while a password change or 2FA setup is still pending.
 		r.Group(func(r chi.Router) {
 			r.Use(a.requireAuth)
 			r.Get("/auth/me", a.me)
-			r.Post("/auth/password", a.changePassword)
+			r.With(a.rateLimit(a.accountLimiter, a.principalKey)).Post("/auth/password", a.changePassword)
+			r.Post("/auth/logout-all", a.logoutAll)
+			r.Post("/auth/totp/setup", a.totpSetup)
+			r.With(a.rateLimit(a.accountLimiter, a.principalKey)).Post("/auth/totp/enable", a.totpEnable)
+			r.With(a.rateLimit(a.accountLimiter, a.principalKey)).Post("/auth/totp/disable", a.totpDisable)
+		})
+
+		// Everything else needs a session that changed its temporary password and,
+		// for Jazyl staff, passed 2FA.
+		r.Group(func(r chi.Router) {
+			r.Use(a.requireAuth, a.requireSessionReady)
 			r.Post("/ws/ticket", a.wsTicket)
 
 			// Platform (Jazyl team) endpoints.
@@ -118,6 +140,8 @@ func (a *API) routes() http.Handler {
 				r.With(requireRole(domain.RoleSuperadmin, domain.RoleOwner)).Get("/users", a.listUsers)
 				r.With(requireRole(domain.RoleSuperadmin, domain.RoleOwner)).Post("/users", a.createUser)
 				r.With(requireRole(domain.RoleSuperadmin, domain.RoleOwner)).Patch("/users/{userID}", a.updateUser)
+				r.With(requireRole(domain.RoleSuperadmin, domain.RoleOwner)).Post("/users/{userID}/password", a.resetUserPassword)
+				r.With(requireRole(domain.RoleSuperadmin)).Post("/users/{userID}/reset-2fa", a.resetUserMFA)
 
 				r.Get("/doctors", a.listDoctors)
 				r.Post("/doctors", a.upsertDoctor)

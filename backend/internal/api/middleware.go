@@ -163,6 +163,31 @@ func (a *API) requireAuth(next http.Handler) http.Handler {
 	})
 }
 
+// requireSessionReady blocks sessions that must first change a temporary password, and
+// superadmin sessions without 2FA when that is required. The dashboard routes on these codes.
+func (a *API) requireSessionReady(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		p, _ := principal(r.Context())
+		if p.MustChangePassword {
+			writeErr(w, r, http.StatusForbidden, "password_change_required", "change the temporary password first")
+			return
+		}
+		if a.mfaGateClosed(p) {
+			writeErr(w, r, http.StatusForbidden, "mfa_required", "two-factor authentication is required for this account")
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// principalKey rate-limits per authenticated user.
+func (a *API) principalKey(r *http.Request) string {
+	if p, ok := principal(r.Context()); ok {
+		return "u:" + p.UserID.String()
+	}
+	return a.clientIP(r)
+}
+
 func requireRole(roles ...string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

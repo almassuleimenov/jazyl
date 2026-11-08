@@ -1,0 +1,177 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-08T00:00:00Z",
+  "title": "Design System: Jazyl",
+  "extensions": {
+    "colorMeta": {
+      "brand": { "role": "primary", "displayName": "Yasawi Dome Teal", "canonical": "#0f5e63", "tonalRamp": ["#062a2c", "#0b4a4e", "#0f5e63", "#2f7a7e", "#6fa5a8", "#b9d5d6", "#d4e6e6", "#e3efef"] },
+      "brand-strong": { "role": "primary", "displayName": "Deep Dome Teal", "canonical": "#0b4a4e" },
+      "brand-soft": { "role": "primary", "displayName": "Teal Wash", "canonical": "#e3efef" },
+      "brand-line": { "role": "primary", "displayName": "Teal Ring", "canonical": "#b9d5d6" },
+      "brand-ink": { "role": "primary", "displayName": "Shell Ink", "canonical": "#d4e6e6" },
+      "action": { "role": "secondary", "displayName": "Warm Commit Amber", "canonical": "#f2a541", "tonalRamp": ["#4a2e06", "#7a4a07", "#b06d12", "#e8962b", "#f2a541", "#f6c07a", "#f9dcb2", "#fcf0dc"] },
+      "action-hover": { "role": "secondary", "displayName": "Pressed Amber", "canonical": "#e8962b" },
+      "action-soft": { "role": "secondary", "displayName": "Amber Wash", "canonical": "#fcf0dc" },
+      "action-ink": { "role": "secondary", "displayName": "Amber Ink", "canonical": "#7a4a07" },
+      "milk": { "role": "neutral", "displayName": "Reception Milk", "canonical": "#f7f5f0", "tonalRamp": ["#2a2823", "#4a4740", "#77736a", "#a8a397", "#d3cdbf", "#e6e1d6", "#f1eee7", "#f7f5f0"] },
+      "surface": { "role": "neutral", "displayName": "Sheet White", "canonical": "#ffffff" },
+      "sunk": { "role": "neutral", "displayName": "Sunk Linen", "canonical": "#f1eee7" },
+      "line": { "role": "neutral", "displayName": "Hairline", "canonical": "#e6e1d6" },
+      "line-strong": { "role": "neutral", "displayName": "Firm Hairline", "canonical": "#d3cdbf" },
+      "ink": { "role": "neutral", "displayName": "Graphite", "canonical": "#1f2328", "tonalRamp": ["#12151a", "#1f2328", "#3a3f46", "#545960", "#6b7078", "#8f939a", "#c4c7cb", "#eceef0"] },
+      "ink-2": { "role": "neutral", "displayName": "Graphite Mid", "canonical": "#545960" },
+      "ink-3": { "role": "neutral", "displayName": "Graphite Quiet", "canonical": "#6b7078" },
+      "ok": { "role": "status", "displayName": "Confirmed Green", "canonical": "#1d6f46", "tonalRamp": ["#0b2e1c", "#14512f", "#1d6f46", "#3d8c62", "#76b493", "#bfdfcc", "#d6ebdf", "#e4f2ea"] },
+      "ok-soft": { "role": "status", "displayName": "Green Wash", "canonical": "#e4f2ea" },
+      "bad": { "role": "status", "displayName": "Alarm Red", "canonical": "#b42318", "tonalRamp": ["#4a0e09", "#7d1810", "#b42318", "#d04a3e", "#e58a80", "#f3c5bf", "#f8dcd8", "#fbe9e7"] },
+      "bad-soft": { "role": "status", "displayName": "Red Wash", "canonical": "#fbe9e7" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "Page title in the page header." },
+      "headline": { "displayName": "Headline", "purpose": "Standalone pages outside the shell: password change, 2FA setup (20px on login and not-found)." },
+      "title": { "displayName": "Title", "purpose": "Panel titles and empty state titles." },
+      "body": { "displayName": "Body", "purpose": "Table cells, form values, notices, page descriptions." },
+      "body-small": { "displayName": "Body small", "purpose": "Panel descriptions, field labels, small buttons, phone day headers." },
+      "label": { "displayName": "Label", "purpose": "Table headers, chips, hints." },
+      "figure": { "displayName": "Figure", "purpose": "Stat strip values, always tabular." }
+    },
+    "shadows": [
+      { "name": "panel", "value": "0 1px 2px rgb(31 35 40 / 0.05), 0 1px 1px rgb(31 35 40 / 0.03)", "purpose": "Panels, the stat strip and every filled or secondary button." },
+      { "name": "pop", "value": "0 8px 24px -6px rgb(31 35 40 / 0.18), 0 2px 6px rgb(31 35 40 / 0.06)", "purpose": "Only layers above the page: the password reset popover and the phone drawer." }
+    ],
+    "motion": [
+      { "name": "ease-out", "value": "cubic-bezier(0.16, 1, 0.3, 1)", "purpose": "Button state changes (150ms) and the phone drawer slide (300ms)." },
+      { "name": "backdrop-fade", "value": "opacity 200ms", "purpose": "Drawer backdrop fade." },
+      { "name": "reduced-motion", "value": "0.01ms", "purpose": "All animation and transition durations collapse under prefers-reduced-motion." }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The single amber commit of a screen; graphite text only.",
+      "html": "<button class=\"ds-btn ds-btn-primary\">Добавить запись</button>",
+      "css": ".ds-btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 8px; font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 14px; font-weight: 500; white-space: nowrap; cursor: pointer; transition: background-color 150ms cubic-bezier(0.16, 1, 0.3, 1), color 150ms, transform 150ms; } .ds-btn:active { transform: translateY(1px); } .ds-btn:focus-visible { outline: 2px solid var(--color-brand, #0f5e63); outline-offset: 2px; } .ds-btn-primary { background: var(--color-action, #f2a541); color: var(--color-ink, #1f2328); border: 1px solid rgb(217 141 34 / 0.4); box-shadow: 0 1px 2px rgb(31 35 40 / 0.05), 0 1px 1px rgb(31 35 40 / 0.03); } .ds-btn-primary:hover { background: var(--color-action-hover, #e8962b); }"
+    },
+    {
+      "name": "Brand Button",
+      "kind": "button",
+      "refersTo": "button-brand",
+      "description": "Teal fill for setup and security steps: WhatsApp linking, 2FA.",
+      "html": "<button class=\"ds-btn-brand\">Включить защиту</button>",
+      "css": ".ds-btn-brand { display: inline-flex; align-items: center; justify-content: center; height: 40px; padding: 0 16px; border-radius: 8px; font-family: Inter, ui-sans-serif, sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; background: var(--color-brand, #0f5e63); color: #ffffff; border: 1px solid var(--color-brand-strong, #0b4a4e); box-shadow: 0 1px 2px rgb(31 35 40 / 0.05), 0 1px 1px rgb(31 35 40 / 0.03); transition: background-color 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-brand:hover { background: var(--color-brand-strong, #0b4a4e); } .ds-btn-brand:active { transform: translateY(1px); } .ds-btn-brand:focus-visible { outline: 2px solid #0f5e63; outline-offset: 2px; }"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Default button; all row actions and dialog submits.",
+      "html": "<button class=\"ds-btn-secondary\">Подтвердил</button>",
+      "css": ".ds-btn-secondary { display: inline-flex; align-items: center; justify-content: center; height: 32px; padding: 0 12px; border-radius: 8px; font-family: Inter, ui-sans-serif, sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; background: var(--color-surface, #ffffff); color: var(--color-ink, #1f2328); border: 1px solid var(--color-line-strong, #d3cdbf); box-shadow: 0 1px 2px rgb(31 35 40 / 0.05), 0 1px 1px rgb(31 35 40 / 0.03); transition: background-color 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-secondary:hover { background: var(--color-sunk, #f1eee7); } .ds-btn-secondary:active { transform: translateY(1px); } .ds-btn-secondary:focus-visible { outline: 2px solid #0f5e63; outline-offset: 2px; }"
+    },
+    {
+      "name": "Danger Button",
+      "kind": "button",
+      "refersTo": "button-danger",
+      "description": "Cancel, disable access, sign out everywhere.",
+      "html": "<button class=\"ds-btn-danger\">Отмена</button>",
+      "css": ".ds-btn-danger { display: inline-flex; align-items: center; justify-content: center; height: 32px; padding: 0 12px; border-radius: 8px; font-family: Inter, ui-sans-serif, sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; background: var(--color-surface, #ffffff); color: var(--color-bad, #b42318); border: 1px solid var(--color-line-strong, #d3cdbf); transition: background-color 150ms cubic-bezier(0.16, 1, 0.3, 1); } .ds-btn-danger:hover { background: var(--color-bad-soft, #fbe9e7); } .ds-btn-danger:active { transform: translateY(1px); } .ds-btn-danger:focus-visible { outline: 2px solid #0f5e63; outline-offset: 2px; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "40px field with label and hint; teal focus ring.",
+      "html": "<div class=\"ds-field\"><label class=\"ds-field-label\" for=\"ds-email\">Почта</label><input id=\"ds-email\" class=\"ds-input\" placeholder=\"owner@clinic.kz\"><p class=\"ds-field-hint\">Сотрудник войдёт под этой почтой.</p></div>",
+      "css": ".ds-field { display: flex; flex-direction: column; gap: 6px; font-family: Inter, ui-sans-serif, sans-serif; } .ds-field-label { font-size: 13px; font-weight: 500; color: var(--color-ink, #1f2328); } .ds-field-hint { margin: 0; font-size: 12px; color: var(--color-ink-3, #6b7078); } .ds-input { height: 40px; width: 100%; padding: 0 12px; border-radius: 8px; border: 1px solid var(--color-line-strong, #d3cdbf); background: var(--color-surface, #ffffff); color: var(--color-ink, #1f2328); font-size: 14px; box-shadow: inset 0 1px 0 rgb(31 35 40 / 0.03); caret-color: #0f5e63; outline: none; transition: border-color 150ms, box-shadow 150ms; } .ds-input::placeholder { color: #6b7078; } .ds-input:hover { border-color: #bfb8a8; } .ds-input:focus { border-color: var(--color-brand, #0f5e63); box-shadow: 0 0 0 3px rgb(15 94 99 / 0.15); }"
+    },
+    {
+      "name": "Status Chips",
+      "kind": "chip",
+      "refersTo": "chip-neutral",
+      "description": "Five tinted status tones with a dot; labels only, never buttons.",
+      "html": "<div class=\"ds-chips\"><span class=\"ds-chip ds-chip-neutral\"><i></i>Ждёт ответа</span><span class=\"ds-chip ds-chip-green\"><i></i>Подтвердил</span><span class=\"ds-chip ds-chip-amber\"><i></i>Просит перенос</span><span class=\"ds-chip ds-chip-teal\"><i></i>Был на приёме</span><span class=\"ds-chip ds-chip-red\"><i></i>Не пришёл</span></div>",
+      "css": ".ds-chips { display: flex; flex-wrap: wrap; gap: 8px; } .ds-chip { display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; border-radius: 9999px; font-family: Inter, ui-sans-serif, sans-serif; font-size: 12px; font-weight: 500; white-space: nowrap; } .ds-chip i { width: 6px; height: 6px; border-radius: 9999px; background: currentColor; opacity: 0.8; } .ds-chip-neutral { background: #f1eee7; color: #545960; box-shadow: inset 0 0 0 1px rgb(211 205 191 / 0.7); } .ds-chip-teal { background: #e3efef; color: #0f5e63; box-shadow: inset 0 0 0 1px #b9d5d6; } .ds-chip-amber { background: #fcf0dc; color: #7a4a07; box-shadow: inset 0 0 0 1px #efd2a3; } .ds-chip-red { background: #fbe9e7; color: #b42318; box-shadow: inset 0 0 0 1px #f3c5bf; } .ds-chip-green { background: #e4f2ea; color: #1d6f46; box-shadow: inset 0 0 0 1px #bfdfcc; }"
+    },
+    {
+      "name": "Stat Strip",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "One row of figures divided by 1px hairline gaps; never a grid of tiles.",
+      "html": "<dl class=\"ds-strip\"><div><dt>Записей за 30 дней</dt><dd class=\"ds-fig\">48</dd><dd class=\"ds-hint\">41 напоминание отправлено</dd></div><div><dt>Подтвердили</dt><dd class=\"ds-fig\">39</dd><dd class=\"ds-hint\">95% от ответивших</dd></div><div><dt>Просили перенос</dt><dd class=\"ds-fig\">4</dd><dd class=\"ds-hint\">1 отменили сами</dd></div><div><dt>Сохранено</dt><dd class=\"ds-fig ds-fig-brand\">45 000 ₸</dd><dd class=\"ds-hint\">3 предотвращённых неявки</dd></div></dl>",
+      "css": ".ds-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 1px; margin: 0; overflow: hidden; border-radius: 12px; border: 1px solid #e6e1d6; background: #e6e1d6; box-shadow: 0 1px 2px rgb(31 35 40 / 0.05), 0 1px 1px rgb(31 35 40 / 0.03); font-family: Inter, ui-sans-serif, sans-serif; } .ds-strip > div { background: #ffffff; padding: 16px 20px; } .ds-strip dt { font-size: 13px; color: #545960; } .ds-strip dd { margin: 0; } .ds-fig { margin-top: 4px !important; font-family: Manrope, Inter, sans-serif; font-size: 26px; line-height: 1.25; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; color: #1f2328; } .ds-fig-brand { color: #0f5e63; } .ds-hint { margin-top: 2px !important; font-size: 12px; color: #6b7078; }"
+    },
+    {
+      "name": "Panel with Table",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "White panel with header row and a flush table; rows hover to #fbfaf7.",
+      "html": "<section class=\"ds-panel\"><header><h2>Сегодня и завтра</h2><p>Статусы обновляются, когда пациент отвечает 1 или 2 в WhatsApp.</p></header><table class=\"ds-table\"><thead><tr><th>Время</th><th>Пациент</th><th>Статус</th></tr></thead><tbody><tr><td class=\"ds-time\">10:00</td><td>Нурлан Абенов</td><td><span class=\"ds-dot-chip\">Подтвердил</span></td></tr><tr><td class=\"ds-time\">12:30</td><td>Сауле Жумабекова</td><td><span class=\"ds-dot-chip ds-amber\">Просит перенос</span></td></tr></tbody></table></section>",
+      "css": ".ds-panel { border-radius: 12px; border: 1px solid #e6e1d6; background: #ffffff; overflow: hidden; box-shadow: 0 1px 2px rgb(31 35 40 / 0.05), 0 1px 1px rgb(31 35 40 / 0.03); font-family: Inter, ui-sans-serif, sans-serif; color: #1f2328; } .ds-panel header { padding: 16px 20px; border-bottom: 1px solid #e6e1d6; } .ds-panel h2 { margin: 0; font-family: Manrope, Inter, sans-serif; font-size: 15px; font-weight: 600; letter-spacing: -0.015em; } .ds-panel header p { margin: 2px 0 0; font-size: 13px; color: #545960; } .ds-table { width: 100%; border-collapse: collapse; font-size: 14px; text-align: left; font-variant-numeric: tabular-nums; } .ds-table th { background: #fbfaf7; padding: 10px 16px; font-size: 12px; font-weight: 500; color: #545960; border-bottom: 1px solid #e6e1d6; } .ds-table td { padding: 12px 16px; border-bottom: 1px solid #e6e1d6; } .ds-table th:first-child, .ds-table td:first-child { padding-left: 20px; } .ds-table tr:last-child td { border-bottom: 0; } .ds-table tbody tr:hover { background: #fbfaf7; } .ds-time { font-weight: 600; } .ds-dot-chip { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 9999px; font-size: 12px; font-weight: 500; background: #e4f2ea; color: #1d6f46; box-shadow: inset 0 0 0 1px #bfdfcc; } .ds-dot-chip.ds-amber { background: #fcf0dc; color: #7a4a07; box-shadow: inset 0 0 0 1px #efd2a3; }"
+    },
+    {
+      "name": "Teal Sidebar",
+      "kind": "nav",
+      "refersTo": "sidebar",
+      "description": "240px teal shell; white active pill, amber badge with graphite text.",
+      "html": "<nav class=\"ds-side\"><div class=\"ds-side-logo\">jazyl</div><div class=\"ds-side-ctx\"><strong>Клиника «Ақ Тіс»</strong><span>Туркестан</span></div><a class=\"ds-side-item ds-active\" href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"9\" rx=\"1\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"5\" rx=\"1\"/><rect x=\"14\" y=\"12\" width=\"7\" height=\"9\" rx=\"1\"/><rect x=\"3\" y=\"16\" width=\"7\" height=\"5\" rx=\"1\"/></svg><span>Обзор</span></a><a class=\"ds-side-item\" href=\"#\"><svg viewBox=\"0 0 24 24\" width=\"18\" height=\"18\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M22 12h-6l-2 3h-4l-2-3H2\"/><path d=\"M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z\"/></svg><span>Заявки</span><b class=\"ds-badge\">2</b></a></nav>",
+      "css": ".ds-side { display: flex; flex-direction: column; gap: 2px; width: 240px; padding: 0 12px 16px; background: var(--color-brand, #0f5e63); color: var(--color-brand-ink, #d4e6e6); font-family: Inter, ui-sans-serif, sans-serif; } .ds-side-logo { height: 64px; display: flex; align-items: center; padding: 0 8px; font-family: Manrope, sans-serif; font-size: 22px; font-weight: 800; letter-spacing: -0.03em; color: #ffffff; } .ds-side-ctx { display: flex; flex-direction: column; margin-bottom: 16px; padding: 10px 12px; border-radius: 8px; border: 1px solid rgb(255 255 255 / 0.12); background: rgb(255 255 255 / 0.06); } .ds-side-ctx strong { font-size: 14px; color: #ffffff; } .ds-side-ctx span { font-size: 12px; color: rgb(212 230 230 / 0.85); } .ds-side-item { display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 8px; font-size: 14px; color: #d4e6e6; text-decoration: none; transition: background-color 150ms, color 150ms; } .ds-side-item:hover { background: rgb(255 255 255 / 0.08); color: #ffffff; } .ds-side-item:focus-visible { outline: 2px solid #f2a541; outline-offset: 2px; } .ds-side-item.ds-active { background: #ffffff; color: #0f5e63; font-weight: 600; box-shadow: 0 1px 2px rgb(31 35 40 / 0.05), 0 1px 1px rgb(31 35 40 / 0.03); } .ds-side-item span { flex: 1; } .ds-badge { padding: 1px 6px; border-radius: 9999px; background: #f2a541; color: #1f2328; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }"
+    },
+    {
+      "name": "Password Reset Popover",
+      "kind": "custom",
+      "refersTo": "panel",
+      "description": "Top-layer popover dialog for a per-user temporary password; secondary submit.",
+      "html": "<div class=\"ds-pop\" role=\"dialog\" aria-label=\"Новый пароль\"><div class=\"ds-pop-head\"><div><p class=\"ds-pop-title\">Новый временный пароль</p><p class=\"ds-pop-sub\">owner@clinic.kz</p></div><button class=\"ds-pop-x\" aria-label=\"Закрыть\"><svg viewBox=\"0 0 24 24\" width=\"16\" height=\"16\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M18 6 6 18M6 6l12 12\"/></svg></button></div><input class=\"ds-pop-input\" value=\"KgtJ-EyaV-d8Cn\"><button class=\"ds-pop-submit\">Выдать пароль</button></div>",
+      "css": ".ds-pop { width: min(24rem, calc(100vw - 2rem)); padding: 20px; border-radius: 12px; border: 1px solid #e6e1d6; background: #ffffff; color: #1f2328; box-shadow: 0 8px 24px -6px rgb(31 35 40 / 0.18), 0 2px 6px rgb(31 35 40 / 0.06); font-family: Inter, ui-sans-serif, sans-serif; } .ds-pop-head { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 16px; } .ds-pop-title { margin: 0; font-size: 16px; font-weight: 600; } .ds-pop-sub { margin: 2px 0 0; font-size: 12px; color: #545960; } .ds-pop-x { display: grid; place-items: center; width: 32px; height: 32px; border: 0; border-radius: 8px; background: transparent; color: #545960; cursor: pointer; } .ds-pop-x:hover { background: #f1eee7; color: #1f2328; } .ds-pop-input { display: block; width: 100%; height: 40px; margin-bottom: 16px; padding: 0 12px; border-radius: 8px; border: 1px solid #d3cdbf; font-family: ui-monospace, monospace; font-size: 13px; font-variant-numeric: tabular-nums; } .ds-pop-input:focus { outline: none; border-color: #0f5e63; box-shadow: 0 0 0 3px rgb(15 94 99 / 0.15); } .ds-pop-submit { height: 40px; padding: 0 16px; border-radius: 8px; border: 1px solid #d3cdbf; background: #ffffff; color: #1f2328; font-size: 14px; font-weight: 500; cursor: pointer; box-shadow: 0 1px 2px rgb(31 35 40 / 0.05), 0 1px 1px rgb(31 35 40 / 0.03); } .ds-pop-submit:hover { background: #f1eee7; } .ds-pop-submit:focus-visible { outline: 2px solid #0f5e63; outline-offset: 2px; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Reception Ledger",
+    "overview": "Jazyl's dashboard is the ledger at a clinic's front desk: a tidy, familiar console where tomorrow's schedule, the replies to reminders and the tenge saved are written plainly and can be acted on at once. It works in Operate mode. People open it to do a job (confirm a visit, hand out a login, link WhatsApp), not to browse, so every surface is a work surface. The craft target is the category standard set by Linear and Stripe: quiet chrome, exact alignment, tabular figures and hairline borders, finished in Jazyl's binding brand colours and fonts.\n\nThe character is calm and restrained. A milk ground carries white panels edged by warm grey hairlines. The deep teal shell holds navigation and identity so the work area can stay neutral. Amber is rare: it marks the one commit a screen exists for. Status is said with small tinted chips, never with colour fields. The system has no decorative charts, vanity tiles, gradients or illustration. Numbers sit in a single divided strip, and depth stops at a whisper of shadow.\n\nDensity is moderate: 40px controls on desktop, 20px panel padding, and lists that turn into one card per row on phones so an owner between patients can tap reliably.",
+    "keyCharacteristics": [
+      "Milk ground, white panels, warm grey hairlines; light theme only.",
+      "Deep teal sidebar shell with a white active pill; the work area stays neutral.",
+      "Exactly one amber commit per screen, always with graphite text.",
+      "Manrope for headings and figures, Inter for everything else, both with Cyrillic and Latin Extended subsets.",
+      "Status chips in five tints (neutral, teal, amber, red, green) with a dot.",
+      "Tables from md up, card lists below md.",
+      "No charts, tiles, gradients or decorative imagery."
+    ],
+    "rules": [
+      { "name": "The One Commit Rule", "body": "Each screen has exactly one amber primary button: the action the screen exists for (\"Добавить запись\", \"Создать доступ\", \"Сохранить настройки\", \"Новая клиника\"). Row actions, dialog submits and secondary steps are secondary buttons. If a second amber button appears, one of them is wrong.", "section": "colors" },
+      { "name": "The Graphite on Amber Rule", "body": "Amber always carries graphite (ink) text, including the sidebar badge. White text on amber is forbidden by the brand and fails contrast.", "section": "colors" },
+      { "name": "The Teal for Trust Rule", "body": "The filled teal button is for setup and security steps: linking WhatsApp, starting and confirming two-factor protection. It never competes with the amber commit.", "section": "colors" },
+      { "name": "The Quiet Shell Rule", "body": "Colour lives in the shell, the one commit and the chips. The work area is milk, white and graphite.", "section": "colors" },
+      { "name": "The Tabular Figures Rule", "body": "Every number a person compares (times, counts, tenge, phone numbers, codes) uses tabular figures. Tables get them by default; elsewhere numbers take the `num` class.", "section": "typography" },
+      { "name": "The Sixteen on Touch Rule", "body": "On coarse pointers inputs, selects and textareas render at 16px so iOS does not zoom.", "section": "typography" },
+      { "name": "The Phone List Rule", "body": "Below md (768px) every list renders as cards: one item per row, divided by hairlines, actions laid out at full width or below the content, grouped under milk-linen day headers when time matters. From md up the same data renders as a table with a 640px minimum width inside a horizontal scroller. Both renderings come from the same data in the same component.", "section": "layout" },
+      { "name": "The Two Shadows Rule", "body": "Use Panel or Pop and nothing else. There are no hover lifts, glows or coloured shadows.", "section": "elevation" }
+    ],
+    "dos": [
+      "Do give every screen exactly one amber primary commit with graphite text, and make row actions secondary or danger sm buttons.",
+      "Do use the teal brand button for WhatsApp linking and two-factor setup.",
+      "Do show numbers in one divided stat strip with tabular figures in Manrope 700 at 26px.",
+      "Do render lists as cards below 768px and as tables from 768px up.",
+      "Do use Panel (`0 1px 2px rgb(31 35 40 / 0.05), 0 1px 1px rgb(31 35 40 / 0.03)`) for resting surfaces and Pop only for the popover and drawer.",
+      "Do say status with the five chip tones and pair every chip colour with a text label.",
+      "Do show empty states, failures and loading plainly in the place the data would appear.",
+      "Do keep sticky bars solid milk with a hairline border."
+    ],
+    "donts": [
+      "Don't put white text on amber, or use amber for anything other than the commit, the unread badge and attention tints.",
+      "Don't place two amber buttons on one screen.",
+      "Don't add decorative charts, KPI tiles, card grids of numbers, gradients or illustration.",
+      "Don't add a dark theme; the dashboard is used at reception desks and on phones in daylight.",
+      "Don't use shadows other than Panel and Pop, or add hover lifts and glows.",
+      "Don't use teeth, smiles, syringes or crosses as imagery or icons; the logo's checkmark is the only mark.",
+      "Don't use a translucent or blurred sticky bar."
+    ]
+  }
+}

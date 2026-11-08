@@ -24,9 +24,14 @@ type Config struct {
 	DatabaseMaxConns   int32
 	AutoMigrate        bool
 
-	JWTSecret       []byte
-	AccessTokenTTL  time.Duration
-	RefreshTokenTTL time.Duration
+	JWTSecret []byte
+	// DataEncryptionKey encrypts TOTP secrets at rest (AES-256-GCM, key derived with SHA-256).
+	DataEncryptionKey []byte
+	// RequireSuperadminMFA keeps superadmin sessions out of everything except account
+	// security until they passed TOTP. Defaults to true in production.
+	RequireSuperadminMFA bool
+	AccessTokenTTL       time.Duration
+	RefreshTokenTTL      time.Duration
 
 	BootstrapAdminEmail    string
 	BootstrapAdminPassword string
@@ -44,7 +49,10 @@ type Config struct {
 
 	WorkersEnabled bool
 	TrustedProxy   bool
-	MetricsToken   string
+	// LoginRatePerMinute limits login and 2FA attempts per client IP. Behind the dashboard BFF
+	// set TRUSTED_PROXY=true so the real client IP (X-Forwarded-For) is used.
+	LoginRatePerMinute int
+	MetricsToken       string
 }
 
 // Load reads configuration. It loads envFile (if it exists) without overriding real env vars.
@@ -78,11 +86,14 @@ func Load(envFiles ...string) (*Config, error) {
 		MetricsToken:           os.Getenv("METRICS_TOKEN"),
 	}
 	c.DatabaseMaxConns = int32(getInt("DATABASE_MAX_CONNS", 10))
+	c.LoginRatePerMinute = getInt("LOGIN_RATE_PER_MINUTE", 20)
 	if c.DatabaseMigrateURL == "" {
 		// Neon: the direct endpoint is the pooled host without the "-pooler" suffix.
 		c.DatabaseMigrateURL = strings.Replace(c.DatabaseURL, "-pooler.", ".", 1)
 	}
 	c.JWTSecret = []byte(os.Getenv("JWT_SECRET"))
+	c.DataEncryptionKey = []byte(os.Getenv("DATA_ENCRYPTION_KEY"))
+	c.RequireSuperadminMFA = getBool("REQUIRE_SUPERADMIN_MFA", c.IsProduction())
 
 	return c, c.validate()
 }
@@ -102,7 +113,17 @@ func (c *Config) validate() error {
 			c.JWTSecret = []byte("dev-only-insecure-jwt-secret-change-me-please!!")
 		}
 	}
+	if len(c.DataEncryptionKey) < 32 {
+		if c.IsProduction() {
+			errs = append(errs, errors.New("DATA_ENCRYPTION_KEY must be at least 32 bytes in production"))
+		} else {
+			c.DataEncryptionKey = []byte("dev-only-insecure-data-key-change-me-please!!!!!")
+		}
+	}
 	if c.IsProduction() {
+		if !c.RequireSuperadminMFA {
+			errs = append(errs, errors.New("REQUIRE_SUPERADMIN_MFA cannot be disabled in production"))
+		}
 		if c.OpenWAWebhookSecret == "" || len(c.OpenWAWebhookSecret) < 16 {
 			errs = append(errs, errors.New("OPENWA_WEBHOOK_SECRET (16+ chars) is required in production"))
 		}

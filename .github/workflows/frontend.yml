@@ -1,0 +1,21 @@
+name: frontend
+on:
+  push:
+    paths: ["frontend/**", ".github/workflows/frontend.yml"]
+  pull_request:
+    paths: ["frontend/**"]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults: {run: {working-directory: frontend}}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: "24", cache: npm, cache-dependency-path: frontend/package-lock.json}
+      - run: npm ci
+      - run: npx next typegen
+      - run: npx tsc --noEmit
+      - run: npx eslint src
+      - run: npm run build
+        env: {JAZYL_API_URL: "http://localhost:8080"}
+      - run: docker build -t jazyl-dashboard:ci .
