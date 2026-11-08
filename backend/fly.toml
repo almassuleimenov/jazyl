@@ -1,0 +1,39 @@
+# Fly.io config for the Jazyl API. Secrets (DATABASE_URL, JWT_SECRET, ...) are set in Fly, never here.
+app = "jazyl"
+primary_region = "fra" # next to Neon (eu-central-1, Frankfurt)
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  APP_ENV = "production"
+  HTTP_ADDR = ":8080"
+  PUBLIC_BASE_URL = "https://jazyl.fly.dev"
+  WORKERS_ENABLED = "true"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  # Reminder workers and WhatsApp webhooks need the process running all the time.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  # Exactly one machine: login rate limits and live updates are kept in memory.
+  min_machines_running = 1
+
+  [http_service.concurrency]
+    type = "requests"
+    soft_limit = 200
+    hard_limit = 250
+
+[checks]
+  [checks.health]
+    type = "http"
+    port = 8080
+    path = "/healthz"
+    interval = "15s"
+    timeout = "3s"
+    grace_period = "20s"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
