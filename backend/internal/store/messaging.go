@@ -56,10 +56,11 @@ func (s *Store) InsertInbound(ctx context.Context, clinicID uuid.UUID, patientID
 
 // OutboxItem is a claimed outbound message with the routing data the sender needs.
 type OutboxItem struct {
-	Message    *domain.Message
-	Provider   string
-	SessionID  *string
-	ClinicName string
+	Message      *domain.Message
+	Provider     string
+	SessionID    *string
+	ClinicName   string
+	ClinicStatus string
 }
 
 // ClaimOutbox leases up to limit due messages for lease. Rows are skipped if locked by another worker.
@@ -96,8 +97,8 @@ func (s *Store) ClaimOutbox(ctx context.Context, limit int, lease time.Duration)
 	out := make([]OutboxItem, 0, len(msgs))
 	for _, m := range msgs {
 		it := OutboxItem{Message: m}
-		if err := s.db.QueryRow(ctx, `SELECT wa_provider, wa_session_id, name FROM clinics WHERE id=$1`, m.ClinicID).
-			Scan(&it.Provider, &it.SessionID, &it.ClinicName); err != nil {
+		if err := s.db.QueryRow(ctx, `SELECT wa_provider, wa_session_id, name, status FROM clinics WHERE id=$1`, m.ClinicID).
+			Scan(&it.Provider, &it.SessionID, &it.ClinicName, &it.ClinicStatus); err != nil {
 			return nil, mapErr(err)
 		}
 		out = append(out, it)

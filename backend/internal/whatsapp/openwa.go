@@ -191,6 +191,11 @@ func (c *OpenWA) RegisterWebhook(ctx context.Context, sessionID, hookURL, secret
 	}, nil, nil)
 }
 
+// DeleteSession implements SessionManager: unlinks the phone and drops the session in OpenWA.
+func (c *OpenWA) DeleteSession(ctx context.Context, id string) error {
+	return c.do(ctx, http.MethodDelete, "/sessions/"+url.PathEscape(id), nil, nil, nil)
+}
+
 // Health pings the gateway.
 func (c *OpenWA) Health(ctx context.Context) error {
 	err := c.do(ctx, http.MethodGet, "/health", nil, nil, nil)

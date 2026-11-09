@@ -187,6 +187,19 @@ func (s *Service) handleIncoming(ctx context.Context, tx *store.Store, env whats
 		return err
 	}
 
+	// Paused/churned clinic: keep the message for the history, but the bot stays silent.
+	if !c.Operating() {
+		kind := domain.MsgPatientIn
+		if c.IsAdminPhone(from) {
+			kind = domain.MsgAdminIn
+		}
+		_, err := tx.InsertInbound(ctx, c.ID, nil, from, kind, m.Body, m.ID)
+		if err == nil {
+			observability.WebhookEvents.WithLabelValues(env.Event, "clinic_paused").Inc()
+		}
+		return err
+	}
+
 	if c.IsAdminPhone(from) {
 		err = s.handleAdminMessage(ctx, tx, c, from, m)
 	} else {

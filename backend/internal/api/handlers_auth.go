@@ -124,6 +124,9 @@ func (a *API) login(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, r, http.StatusUnauthorized, "invalid_credentials", "wrong email or password")
 		return
 	}
+	if a.clinicSuspended(w, r, u) {
+		return
+	}
 	if u.TOTPEnabled {
 		// Password is right; the session starts only after the TOTP code (POST /auth/mfa).
 		t, err := a.tokens.Issue(auth.Principal{UserID: u.ID, Role: u.Role, ClinicID: u.ClinicID}, "mfa", mfaTokenTTL)
@@ -137,7 +140,31 @@ func (a *API) login(w http.ResponseWriter, r *http.Request) {
 	a.completeLogin(w, r, u, false)
 }
 
+// errClinicSuspended stops a refresh for staff of a paused or churned clinic.
+var errClinicSuspended = errors.New("clinic suspended")
+
+// clinicSuspended answers 403 clinic_suspended when a clinic user's clinic is paused or churned.
+// Jazyl staff (no clinic) are never affected.
+func (a *API) clinicSuspended(w http.ResponseWriter, r *http.Request, u *domain.User) bool {
+	if u.ClinicID == nil {
+		return false
+	}
+	c, err := a.store.GetClinic(r.Context(), *u.ClinicID)
+	if err != nil {
+		fail(w, r, err)
+		return true
+	}
+	if c.Operating() {
+		return false
+	}
+	writeErr(w, r, http.StatusForbidden, "clinic_suspended", "access to this clinic is paused by Jazyl")
+	return true
+}
+
 func (a *API) completeLogin(w http.ResponseWriter, r *http.Request, u *domain.User, mfa bool) {
+	if a.clinicSuspended(w, r, u) {
+		return
+	}
 	resp, err := a.issueTokens(r, a.store, u, mfa)
 	if err != nil {
 		fail(w, r, err)
@@ -242,9 +269,22 @@ func (a *API) refresh(w http.ResponseWriter, r *http.Request) {
 		if !u.IsActive {
 			return domain.ErrUnauthorized
 		}
+		if u.ClinicID != nil {
+			c, err := tx.GetClinic(r.Context(), *u.ClinicID)
+			if err != nil {
+				return err
+			}
+			if !c.Operating() {
+				return errClinicSuspended
+			}
+		}
 		resp, err = a.issueTokens(r, tx, u, mfa && u.TOTPEnabled)
 		return err
 	})
+	if errors.Is(err, errClinicSuspended) {
+		writeErr(w, r, http.StatusForbidden, "clinic_suspended", "access to this clinic is paused by Jazyl")
+		return
+	}
 	if errors.Is(err, store.ErrRefreshRace) {
 		writeErr(w, r, http.StatusUnauthorized, "refresh_race", "refresh token was just rotated by a parallel request")
 		return

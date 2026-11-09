@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { updateClinicAction } from "@/app/actions/clinic";
+import { deleteClinicAction, updateClinicAction } from "@/app/actions/clinic";
 import { ActionForm, SubmitButton } from "@/components/form";
-import { Checkbox, Field, Input, PageHeader, Panel, Select, Textarea } from "@/components/ui";
+import { Checkbox, Field, Input, Notice, PageHeader, Panel, Select, Textarea } from "@/components/ui";
 import { WhatsAppConnect } from "@/components/whatsapp";
 import { kzt, phone } from "@/lib/format";
 import { clinicStatus, plans } from "@/lib/labels";
@@ -26,6 +26,12 @@ export default async function SettingsPage({ params }: PageProps<"/c/[clinicId]/
     <>
       <PageHeader title="Настройки" description="Что и когда бот пишет пациентам и владельцу." />
       <div className="flex max-w-3xl flex-col gap-6">
+        {c.status === "paused" || c.status === "churned" ? (
+          <Notice tone="amber">
+            Клиника {c.status === "paused" ? "на паузе" : "отмечена как ушедшая"}: напоминания и бот выключены, сотрудники клиники не
+            могут войти. Данные сохранены. Чтобы всё вернуть, поставьте статус «Пилот» или «Платит».
+          </Notice>
+        ) : null}
         {isPlatform ? (
           <Panel title="WhatsApp клиники" description="Видно только команде Jazyl." className="scroll-mt-20">
             <div id="whatsapp" className="scroll-mt-24">
@@ -158,7 +164,11 @@ export default async function SettingsPage({ params }: PageProps<"/c/[clinicId]/
                     ))}
                   </Select>
                 </Field>
-                <Field label="Статус" htmlFor="status">
+                <Field
+                  label="Статус"
+                  htmlFor="status"
+                  hint="«Пауза» и «Ушла» выключают напоминания, бота и вход сотрудников клиники. Данные сохраняются."
+                >
                   <Select id="status" name="status" defaultValue={c.status}>
                     {Object.entries(clinicStatus).map(([k, s]) => (
                       <option key={k} value={k}>
@@ -183,6 +193,25 @@ export default async function SettingsPage({ params }: PageProps<"/c/[clinicId]/
             </SubmitButton>
           </div>
         </ActionForm>
+
+        {isPlatform ? (
+          <Panel
+            title="Удалить клинику"
+            description="Навсегда удаляет клинику и всё, что с ней связано: пациентов, записи, заявки, переписку, отзывы, сотрудников и ключи сайта. Номер WhatsApp отвязывается. Отменить нельзя. Если клиника просто перестала платить, поставьте статус «Пауза»."
+          >
+            <ActionForm action={deleteClinicAction}>
+              <input type="hidden" name="clinic_id" value={clinicId} />
+              <Field label={`Для подтверждения введите короткое имя клиники: ${c.slug}`} htmlFor="confirm">
+                <Input id="confirm" name="confirm" required autoComplete="off" spellCheck={false} placeholder={c.slug} />
+              </Field>
+              <div>
+                <SubmitButton variant="danger" pendingText="Удаляем…">
+                  Удалить клинику навсегда
+                </SubmitButton>
+              </div>
+            </ActionForm>
+          </Panel>
+        ) : null}
       </div>
     </>
   );

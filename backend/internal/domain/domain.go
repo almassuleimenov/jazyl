@@ -125,6 +125,14 @@ func (c *Clinic) Location() *time.Location {
 }
 
 // IsAdminPhone reports whether phone belongs to the clinic staff (admins or owner).
+// Operating reports whether the clinic's automation and staff access are on.
+// "paused" and "churned" switch off reminders, the bot, outgoing messages and staff logins;
+// the data stays, and setting the status back to pilot/active restores everything.
+func (c *Clinic) Operating() bool { return ClinicOperating(c.Status) }
+
+// ClinicOperating is Operating for a bare status value.
+func ClinicOperating(status string) bool { return status == "pilot" || status == "active" }
+
 func (c *Clinic) IsAdminPhone(phone string) bool {
 	if phone == "" {
 		return false

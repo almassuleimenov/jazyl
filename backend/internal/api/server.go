@@ -125,6 +125,7 @@ func (a *API) routes() http.Handler {
 				r.Get("/overview", a.platformOverview)
 				r.Get("/clinics", a.listClinics)
 				r.Post("/clinics", a.createClinic)
+				r.Delete("/clinics/{clinicID}", a.deleteClinic)
 				r.Post("/clinics/{clinicID}/whatsapp/connect", a.whatsappConnect)
 				r.Get("/clinics/{clinicID}/whatsapp", a.whatsappStatus)
 				r.Get("/clinics/{clinicID}/whatsapp/qr", a.whatsappQR)

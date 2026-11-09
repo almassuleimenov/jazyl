@@ -92,7 +92,8 @@ func (s *Service) CreateSiteBooking(ctx context.Context, clinicID uuid.UUID, in 
 			return err
 		}
 
-		if c.Settings.AutoBookFromSite && in.PreferredAt != nil {
+		// A paused clinic still collects website leads, but nothing is booked or sent automatically.
+		if c.Settings.AutoBookFromSite && in.PreferredAt != nil && c.Operating() {
 			dur := c.Settings.SlotMinutes
 			if in.ServiceID != nil {
 				if svc, err := tx.GetService(ctx, c.ID, *in.ServiceID); err == nil {

@@ -92,6 +92,7 @@ const messages: Record<string, string> = {
   opted_out: "Пациент отписался от сообщений, писать ему нельзя.",
   not_configured: "Сервер WhatsApp не настроен (OPENWA_WEBHOOK_SECRET).",
   unavailable: "Сервер Jazyl недоступен. Проверьте, что API запущен, и попробуйте ещё раз.",
+  clinic_suspended: "Доступ к кабинету клиники приостановлен. Свяжитесь с командой Jazyl.",
 };
 
 // Known API validation messages translated for the interface.
@@ -112,6 +113,7 @@ const detail: [RegExp, string][] = [
   [/cannot deactivate yourself/, "Нельзя отключить собственный доступ."],
   [/mandatory for Jazyl/, "Для аккаунта Jazyl двухфакторная защита обязательна."],
   [/start the setup first/, "Сначала начните подключение заново."],
+  [/confirm must equal the clinic slug/, "Короткое имя введено неверно. Клиника не удалена."],
 ];
 
 export function humanError(e: ApiError): string {

@@ -85,6 +85,7 @@ go test -race ./...
 |---|---|---|
 | GET | `/admin/overview` | все клиники с активностью за 30 дней, MRR, разбивка по тарифам |
 | GET/POST | `/admin/clinics` | список / создание клиники |
+| DELETE | `/admin/clinics/{id}` | `{confirm: "<slug>"}` → удалить клинику со всеми данными и отвязать WhatsApp (необратимо). Обычно хватает статуса `paused`/`churned`: он выключает напоминания, бота, исходящие и вход сотрудников, данные остаются |
 | POST | `/admin/clinics/{id}/whatsapp/connect` | создать и запустить сессию OpenWA, зарегистрировать вебхук |
 | GET | `/admin/clinics/{id}/whatsapp` | статус сессии |
 | GET | `/admin/clinics/{id}/whatsapp/qr` | QR (data URL PNG) |

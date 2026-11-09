@@ -273,3 +273,12 @@ export async function sendMessageAction(_: ActionState, fd: FormData): Promise<A
   revalidatePath(`/c/${s(fd, "clinic_id")}/chats`);
   return r;
 }
+
+export async function deleteClinicAction(_: ActionState, fd: FormData): Promise<ActionState> {
+  const confirm = s(fd, "confirm");
+  if (!confirm) return { ok: false, error: "Введите короткое имя клиники для подтверждения." };
+  const r = await attempt(() => api(`/admin/clinics/${id(fd)}`, { method: "DELETE", body: { confirm } }));
+  if (!r?.ok) return r;
+  revalidatePath("/admin", "layout");
+  redirect("/admin");
+}

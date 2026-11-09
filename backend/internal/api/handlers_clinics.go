@@ -212,6 +212,7 @@ func (a *API) updateClinic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	p, _ := principal(r.Context())
+	wasOperating, oldStatus := c.Operating(), c.Status
 	if err := in.apply(c, p.Role == domain.RoleSuperadmin); err != nil {
 		fail(w, r, err)
 		return
@@ -221,8 +222,58 @@ func (a *API) updateClinic(w http.ResponseWriter, r *http.Request) {
 		fail(w, r, err)
 		return
 	}
-	a.audit(r, &cid, "clinic.updated", "clinic", cid.String(), nil)
+	if wasOperating && !out.Operating() {
+		// Paused/churned: staff are signed out now (refresh is refused from here on;
+		// an already issued access token lapses within its 15-minute lifetime).
+		if err := a.store.RevokeClinicTokens(r.Context(), cid); err != nil {
+			fail(w, r, err)
+			return
+		}
+	}
+	var meta map[string]any
+	if oldStatus != out.Status {
+		meta = map[string]any{"status_from": oldStatus, "status_to": out.Status}
+	}
+	a.audit(r, &cid, "clinic.updated", "clinic", cid.String(), meta)
 	writeJSON(w, http.StatusOK, out)
+}
+
+// deleteClinic permanently removes a clinic with all its data. Jazyl only; the body must repeat
+// the clinic's slug ({"confirm": "<slug>"}) so a wrong id or a misclick cannot delete anything.
+func (a *API) deleteClinic(w http.ResponseWriter, r *http.Request) {
+	cid, ok := pathUUID(w, r, "clinicID")
+	if !ok {
+		return
+	}
+	var in struct {
+		Confirm string `json:"confirm"`
+	}
+	if !decode(w, r, &in) {
+		return
+	}
+	c, err := a.store.GetClinic(r.Context(), cid)
+	if err != nil {
+		fail(w, r, err)
+		return
+	}
+	if strings.TrimSpace(in.Confirm) != c.Slug {
+		writeErr(w, r, http.StatusUnprocessableEntity, "invalid", "confirm must equal the clinic slug")
+		return
+	}
+	// Unlink the clinic's WhatsApp first; a gateway failure must not block the deletion.
+	if c.WASessionID != nil && c.WAProvider == "openwa" && !strings.HasPrefix(*c.WASessionID, "mock-") {
+		if err := a.sessions.DeleteSession(r.Context(), *c.WASessionID); err != nil {
+			logger(r.Context()).Warn("delete openwa session; remove it in OpenWA by hand",
+				"session_id", *c.WASessionID, "err", err)
+		}
+	}
+	if err := a.store.DeleteClinic(r.Context(), cid); err != nil {
+		fail(w, r, err)
+		return
+	}
+	// The clinic's own audit rows are gone with it; this record is platform-level.
+	a.audit(r, nil, "clinic.deleted", "clinic", cid.String(), map[string]any{"slug": c.Slug, "name": c.Name})
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // ---------- users ----------

@@ -137,7 +137,7 @@ func (s *Service) dispatchReminder(ctx context.Context, tx *store.Store, r store
 	if err != nil {
 		return nil, "", err
 	}
-	if c.Status != "pilot" && c.Status != "active" {
+	if !c.Operating() {
 		return nil, "clinic " + c.Status, nil
 	}
 	a, err := tx.LockAppointment(ctx, r.ClinicID, r.AppointmentID)

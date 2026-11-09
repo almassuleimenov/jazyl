@@ -110,6 +110,12 @@ func (o *Outbox) deliver(ctx context.Context, it store.OutboxItem) {
 	now := o.now()
 	log := o.log.With("message_id", m.ID, "clinic_id", m.ClinicID, "kind", m.Kind, "to", phone.Mask(m.Phone))
 
+	// A paused or churned clinic sends nothing, including messages queued before the switch.
+	if !domain.ClinicOperating(it.ClinicStatus) {
+		o.fail(ctx, m, "clinic "+it.ClinicStatus)
+		return
+	}
+
 	// Drop messages that are no longer useful.
 	if age := now.Sub(m.CreatedAt); age > expireAfter || (m.Kind == domain.MsgReminder && age > reminderStale) {
 		o.fail(ctx, m, "expired before delivery")

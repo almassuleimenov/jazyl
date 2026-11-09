@@ -342,6 +342,26 @@ func (s *Store) RevokeRefreshToken(ctx context.Context, hash []byte) error {
 }
 
 // RevokeUserTokens revokes every token of a user (password change, deactivation).
+// RevokeClinicTokens signs out every staff member of a clinic (used when it is paused).
+func (s *Store) RevokeClinicTokens(ctx context.Context, clinicID uuid.UUID) error {
+	_, err := s.db.Exec(ctx, `UPDATE refresh_tokens SET revoked_at=now()
+		WHERE revoked_at IS NULL AND user_id IN (SELECT id FROM users WHERE clinic_id=$1)`, clinicID)
+	return mapErr(err)
+}
+
+// DeleteClinic removes a clinic and, through ON DELETE CASCADE, all of its data:
+// staff, patients, appointments, reminders, leads, messages, reviews, site keys and audit rows.
+func (s *Store) DeleteClinic(ctx context.Context, clinicID uuid.UUID) error {
+	tag, err := s.db.Exec(ctx, `DELETE FROM clinics WHERE id=$1`, clinicID)
+	if err != nil {
+		return mapErr(err)
+	}
+	if tag.RowsAffected() == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
 func (s *Store) RevokeUserTokens(ctx context.Context, userID uuid.UUID) error {
 	_, err := s.db.Exec(ctx, `UPDATE refresh_tokens SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL`, userID)
 	return mapErr(err)

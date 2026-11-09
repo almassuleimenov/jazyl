@@ -58,6 +58,7 @@ type SessionManager interface {
 	QRCode(ctx context.Context, id string) (qrDataURL, status string, err error)
 	PairingCode(ctx context.Context, id, phone string) (code string, err error)
 	RegisterWebhook(ctx context.Context, sessionID, url, secret string, events []string) error
+	DeleteSession(ctx context.Context, id string) error
 }
 
 // Mock is an in-memory provider for local development and tests. It "delivers" by logging.
