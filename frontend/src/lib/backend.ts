@@ -32,7 +32,7 @@ export async function rawCall(
     });
   } catch (e) {
     // API down or timed out: report it like a 503 so forms show a message instead of crashing.
-    console.error(`Jazyl API unreachable (${apiBase()}):`, (e as Error).cause ?? e);
+    console.error(`Jazyl API unreachable (${process.env.JAZYL_API_URL || "JAZYL_API_URL is not set"}):`, (e as Error).cause ?? e);
     return { status: 503, data: { error: { code: "unavailable", message: "API unreachable" } }, retryAfter: null };
   }
   const text = await res.text();
