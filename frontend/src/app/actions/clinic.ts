@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { ApiError, api, attempt, humanError, type ActionState } from "@/lib/api";
+import { ApiError, api, apiWithStatus, attempt, humanError, type ActionState } from "@/lib/api";
 import { localInputToISO } from "@/lib/format";
 import type { Clinic, ClinicSettings } from "@/lib/types";
 
@@ -201,24 +201,35 @@ export async function createAppointmentAction(_: ActionState, fd: FormData): Pro
   const date = s(fd, "date");
   const timeOfDay = s(fd, "time");
   if (!date || !timeOfDay) return { ok: false, error: "Укажите дату и время." };
-  const r = await attempt(
-    () =>
-      api(`/clinics/${id(fd)}/appointments`, {
-        method: "POST",
-        body: {
-          patient_phone: s(fd, "patient_phone"),
-          patient_name: s(fd, "patient_name"),
-          patient_language: s(fd, "patient_language") || "ru",
-          service_name: s(fd, "service_name"),
-          starts_at: localInputToISO(`${date}T${timeOfDay}`),
-          duration_min: n(fd, "duration_min") || 30,
-          notes: s(fd, "notes"),
-        },
-      }),
-    "Запись добавлена, напоминания запланированы.",
-  );
+  let status: number;
+  try {
+    ({ status } = await apiWithStatus(`/clinics/${id(fd)}/appointments`, {
+      method: "POST",
+      body: {
+        patient_phone: s(fd, "patient_phone"),
+        patient_name: s(fd, "patient_name"),
+        patient_language: s(fd, "patient_language") || "ru",
+        service_name: s(fd, "service_name"),
+        starts_at: localInputToISO(`${date}T${timeOfDay}`),
+        duration_min: n(fd, "duration_min") || 30,
+        notes: s(fd, "notes"),
+      },
+    }));
+  } catch (e) {
+    if (e instanceof ApiError) return { ok: false, error: humanError(e) };
+    throw e;
+  }
+  // The API never duplicates a visit: same patient + same start returns the existing one with 200.
+  if (status !== 201) {
+    const [y, m, d] = date.split("-");
+    return {
+      ok: false,
+      error: `Этот пациент уже записан на ${d}.${m}.${y} в ${timeOfDay}. Повторная запись не создаётся, чтобы напоминание не пришло дважды.`,
+    };
+  }
   revalidatePath(`/c/${s(fd, "clinic_id")}`, "layout");
-  return r;
+  // Open the day of the new visit: the list defaults to "tomorrow" and would otherwise hide it.
+  redirect(`/c/${id(fd)}/appointments?day=${encodeURIComponent(date)}`);
 }
 
 export async function importScheduleAction(_: ActionState, fd: FormData): Promise<ActionState> {

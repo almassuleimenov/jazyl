@@ -36,10 +36,18 @@ function toError(r: RawResult): ApiError {
  * other failures throw ApiError.
  */
 export async function api<T>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
+  return (await apiWithStatus<T>(path, init)).data;
+}
+
+/** Like api(), but also returns the HTTP status (e.g. 201 created vs 200 already existed). */
+export async function apiWithStatus<T>(
+  path: string,
+  init: { method?: string; body?: unknown } = {},
+): Promise<{ status: number; data: T }> {
   const token = (await cookies()).get(COOKIE.access)?.value;
   if (!token) redirect("/login");
   const r = await rawCall(path, { ...init, token, ...(await clientMeta()) });
-  if (r.status >= 200 && r.status < 300) return r.data as T;
+  if (r.status >= 200 && r.status < 300) return { status: r.status, data: r.data as T };
   const code = errorCode(r.data);
   if (r.status === 401) redirect("/auth/expired");
   if (code === "password_change_required") redirect("/setup/password");
