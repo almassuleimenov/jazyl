@@ -58,6 +58,8 @@ func fail(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, core.ErrPlanRequired):
 		writeErr(w, r, http.StatusPaymentRequired, "plan_required", "this feature requires the «Полное кресло» plan or higher")
 	case errors.Is(err, whatsapp.ErrPermanent), errors.Is(err, whatsapp.ErrNotReady):
+		// Log the gateway's reason: without it a 502 in the logs is undiagnosable.
+		logger(r.Context()).Warn("whatsapp gateway error", "err", err)
 		writeErr(w, r, http.StatusBadGateway, "whatsapp_error", err.Error())
 	default:
 		logger(r.Context()).Error("request failed", "err", err)

@@ -418,8 +418,13 @@ func (a *API) whatsappConnect(w http.ResponseWriter, r *http.Request) {
 	}
 
 	sessionID := ""
+	// A session stuck in "created" never got its webhook or never started (e.g. the first attempt
+	// failed on a bad PUBLIC_BASE_URL); register the webhook again. This only happens before the
+	// phone is linked; inbound events are also deduplicated by OpenWA's idempotency key.
+	needHook := true
 	if c.WASessionID != nil {
 		sessionID = *c.WASessionID
+		needHook = c.WASessionStatus == "" || c.WASessionStatus == "created"
 	} else {
 		s, err := a.sessions.CreateSession(r.Context(), "jazyl-"+c.Slug)
 		if err != nil {
@@ -431,10 +436,12 @@ func (a *API) whatsappConnect(w http.ResponseWriter, r *http.Request) {
 			fail(w, r, err)
 			return
 		}
+	}
+	if needHook {
 		hook := a.cfg.PublicBaseURL + "/webhooks/openwa"
 		events := []string{"message.received", "session.status", "session.authenticated", "session.disconnected"}
 		if err := a.sessions.RegisterWebhook(r.Context(), sessionID, hook, a.cfg.OpenWAWebhookSecret, events); err != nil {
-			fail(w, r, fmt.Errorf("register webhook: %w", err))
+			fail(w, r, fmt.Errorf("register webhook %s: %w", hook, err))
 			return
 		}
 	}
