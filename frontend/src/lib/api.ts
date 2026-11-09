@@ -118,6 +118,10 @@ export function humanError(e: ApiError): string {
   if (e.code === "invalid" || e.code === "conflict" || e.code === "forbidden") {
     for (const [re, text] of detail) if (re.test(e.message)) return text;
   }
+  if (e.code === "whatsapp_error") {
+    // The gateway's own reason (wrong key, rejected webhook URL, session not ready) is what the operator needs.
+    return `WhatsApp-шлюз ответил ошибкой: ${e.message.slice(0, 300)}`;
+  }
   if (messages[e.code]) return messages[e.code];
   if (e.status >= 500) return "Сервер Jazyl не ответил. Попробуйте ещё раз через минуту.";
   return "Не получилось сохранить. Проверьте поля и попробуйте снова.";
