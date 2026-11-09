@@ -249,12 +249,41 @@ func bootstrapAdmin(ctx context.Context, cfg *config.Config, st *store.Store, lo
 	if cfg.BootstrapAdminEmail == "" || cfg.BootstrapAdminPassword == "" {
 		return nil
 	}
-	n, err := st.CountSuperadmins(ctx)
-	if err != nil {
-		return err
+	// The env pair is the founder's login and the source of truth: the account is created if
+	// missing, and its password follows the env on every start. 2FA and sessions of a matching
+	// password are left untouched; other users are never affected.
+	u, err := st.GetUserByEmail(ctx, cfg.BootstrapAdminEmail)
+	if errors.Is(err, domain.ErrNotFound) {
+		return createSuperadmin(ctx, st, cfg.BootstrapAdminEmail, cfg.BootstrapAdminPassword, log)
 	}
-	if n > 0 {
+	if err != nil {
+		return fmt.Errorf("bootstrap admin: %w", err)
+	}
+	if u.Role != domain.RoleSuperadmin {
+		log.Warn("BOOTSTRAP_ADMIN_EMAIL belongs to a clinic user; left unchanged", "user_id", u.ID)
 		return nil
 	}
-	return createSuperadmin(ctx, st, cfg.BootstrapAdminEmail, cfg.BootstrapAdminPassword, log)
+	if !u.IsActive {
+		log.Warn("bootstrap superadmin is deactivated; left unchanged", "user_id", u.ID)
+		return nil
+	}
+	if auth.CheckPassword(u.PasswordHash, cfg.BootstrapAdminPassword) {
+		return nil
+	}
+	hash, err := auth.HashPassword(cfg.BootstrapAdminPassword)
+	if err != nil {
+		return fmt.Errorf("bootstrap admin password: %w", err)
+	}
+	if err := st.SetUserPassword(ctx, u.ID, hash, false); err != nil {
+		return err
+	}
+	// The old password is gone: sign out every session it opened.
+	if err := st.RevokeUserTokens(ctx, u.ID); err != nil {
+		return err
+	}
+	if err := st.Audit(ctx, nil, nil, "user.password_from_env", "user", u.ID.String(), "", nil); err != nil {
+		log.Warn("audit write failed", "err", err)
+	}
+	log.Info("superadmin password updated from BOOTSTRAP_ADMIN_PASSWORD", "user_id", u.ID)
+	return nil
 }
